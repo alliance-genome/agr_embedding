@@ -29,7 +29,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Set CPU Thread Count (Optional)
+### 2. Set Up Pre-Commit Hooks (Optional but Recommended)
+
+Install pre-commit hooks to prevent secrets from being committed:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+This will run gitleaks before each commit to check for exposed secrets.
+
+### 3. Set CPU Thread Count (Optional)
 
 For your 96-core system, set to use ~48 threads (half your cores):
 
@@ -38,7 +49,7 @@ export OMP_NUM_THREADS=48
 export MKL_NUM_THREADS=48
 ```
 
-### 3. Start Server
+### 4. Start Server
 
 ```bash
 # Development mode
