@@ -41,17 +41,19 @@ RUN apt-get update && apt-get install -y bc && \
 # Create directory for models
 RUN mkdir -p /app/models
 
-# Download Granite 4.0 H-Tiny GGUF model (Q4_K_M quantization) during build
-# This is ~4-5GB, 7B params with 1B active (MoE), excellent balance of quality and speed
+# Download Granite 4.0 H-Tiny GGUF model (BF16 full precision) during build
+# This is ~13-15GB, 7B params with 1B active (MoE), ZERO quantization loss
+# BF16 = Brain Float 16-bit, identical quality to original trained model
+# With 512GB RAM, we can afford maximum quality with no degradation
 # NOTE: When using volume mounts, this will be overridden - the entrypoint handles re-download
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 RUN python3 -c "from huggingface_hub import snapshot_download; \
     snapshot_download( \
         repo_id='unsloth/granite-4.0-h-tiny-GGUF', \
         local_dir='/app/models', \
-        allow_patterns=['*UD-Q4_K_M*'] \
+        allow_patterns=['*BF16*'] \
     )" && \
-    find /app/models -name "*UD-Q4_K_M*.gguf" -exec ln -s {} /app/models/granite-4.0-h-tiny.gguf \;
+    find /app/models -name "*BF16*.gguf" -exec ln -s {} /app/models/granite-4.0-h-tiny-BF16.gguf \;
 
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
