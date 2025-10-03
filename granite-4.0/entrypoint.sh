@@ -69,11 +69,11 @@ else
 
         export HF_HUB_ENABLE_HF_TRANSFER=1
 
-        # Use the official hf CLI for better progress and reliability
-        echo -e "${BLUE}[INFO]${NC} Running: huggingface-cli download ${MODEL_REPO} --include '${MODEL_PATTERN}' --local-dir ${MODEL_DIR}"
+        # Download the entire repo first to see what's available
+        echo -e "${BLUE}[INFO]${NC} Downloading from ${MODEL_REPO}..."
 
-        huggingface-cli download "${MODEL_REPO}" \
-            --include "${MODEL_PATTERN}" \
+        hf download "${MODEL_REPO}" \
+            --include "*.gguf" \
             --local-dir "${MODEL_DIR}" \
             --local-dir-use-symlinks False
 
@@ -87,11 +87,20 @@ else
         # Debug: Show what was actually downloaded
         echo -e "\n${BLUE}[DEBUG]${NC} Contents of ${MODEL_DIR} after download:"
         ls -lah "${MODEL_DIR}"
-        echo -e "\n${BLUE}[DEBUG]${NC} Searching for GGUF files:"
-        find "${MODEL_DIR}" -type f -name "*.gguf" 2>/dev/null || echo "No GGUF files found"
+        echo -e "\n${BLUE}[DEBUG]${NC} All GGUF files found:"
+        find "${MODEL_DIR}" -type f -name "*.gguf" 2>/dev/null | while read f; do
+            size=$(du -h "$f" | cut -f1)
+            echo "  $f ($size)"
+        done
 
-        # Find and symlink the downloaded model
+        # Find the Q4_K_M model (trying various patterns)
+        echo -e "\n${BLUE}[INFO]${NC} Looking for Q4_K_M model..."
         DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*Q4_K_M*.gguf" 2>/dev/null | head -n 1)
+
+        if [ -z "${DOWNLOADED_MODEL}" ]; then
+            echo -e "${YELLOW}[WARNING]${NC} Q4_K_M model not found, trying other patterns..."
+            DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*q4*k*m*.gguf" -o -name "*Q4*K*M*.gguf" 2>/dev/null | head -n 1)
+        fi
 
         if [ -n "${DOWNLOADED_MODEL}" ]; then
             echo -e "${YELLOW}[ACTION]${NC} Creating symlink to downloaded model..."
