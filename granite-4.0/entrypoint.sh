@@ -69,11 +69,16 @@ else
 
         export HF_HUB_ENABLE_HF_TRANSFER=1
 
-        # Download the entire repo first to see what's available
-        echo -e "${BLUE}[INFO]${NC} Downloading from ${MODEL_REPO}..."
+        # Download only Q4_K_M quantization (4-bit K-quant Medium)
+        # Q4_K_M provides the best balance of quality vs. size:
+        #   - File size: ~4.5GB (vs 13GB for BF16, 2GB for Q2_K)
+        #   - Quality: Excellent (minimal degradation from full precision)
+        #   - Speed: Fast inference on CPU (4-bit precision)
+        #   - Memory: Fits comfortably in 16GB RAM with room for context
+        echo -e "${BLUE}[INFO]${NC} Downloading Q4_K_M variant from ${MODEL_REPO}..."
 
         hf download "${MODEL_REPO}" \
-            --include "*.gguf" \
+            --include "*Q4_K_M*.gguf" \
             --local-dir "${MODEL_DIR}"
 
         if [ $? -ne 0 ]; then
