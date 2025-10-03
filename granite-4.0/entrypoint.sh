@@ -69,56 +69,29 @@ else
 
         export HF_HUB_ENABLE_HF_TRANSFER=1
 
-        python3 -c "
-import sys
-import os
-from huggingface_hub import snapshot_download
+        # Use the official hf CLI for better progress and reliability
+        echo -e "${BLUE}[INFO]${NC} Running: huggingface-cli download ${MODEL_REPO} --include '${MODEL_PATTERN}' --local-dir ${MODEL_DIR}"
 
-print('[INFO] Starting download from ${MODEL_REPO}...')
-print(f'[DEBUG] Target directory: ${MODEL_DIR}')
-print(f'[DEBUG] Pattern: ${MODEL_PATTERN}')
-print(f'[DEBUG] Checking for cached files...')
-
-try:
-    result = snapshot_download(
-        repo_id='${MODEL_REPO}',
-        local_dir='${MODEL_DIR}',
-        allow_patterns=['${MODEL_PATTERN}'],
-        local_dir_use_symlinks=False
-    )
-    print(f'[INFO] Download result: {result}')
-
-    # List what we actually got
-    print('[DEBUG] Files in target directory:')
-    for root, dirs, files in os.walk('${MODEL_DIR}'):
-        for file in files:
-            filepath = os.path.join(root, file)
-            size_mb = os.path.getsize(filepath) / (1024*1024)
-            print(f'  {filepath} ({size_mb:.2f} MB)')
-
-    print('[SUCCESS] Download completed!')
-except Exception as e:
-    print(f'[ERROR] Download failed: {e}')
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
-"
+        huggingface-cli download "${MODEL_REPO}" \
+            --include "${MODEL_PATTERN}" \
+            --local-dir "${MODEL_DIR}" \
+            --local-dir-use-symlinks False
 
         if [ $? -ne 0 ]; then
             echo -e "${RED}[ERROR]${NC} Failed to download model!"
             exit 1
         fi
 
+        echo -e "${GREEN}[SUCCESS]${NC} Download completed!"
+
         # Debug: Show what was actually downloaded
         echo -e "\n${BLUE}[DEBUG]${NC} Contents of ${MODEL_DIR} after download:"
         ls -lah "${MODEL_DIR}"
         echo -e "\n${BLUE}[DEBUG]${NC} Searching for GGUF files:"
-        find "${MODEL_DIR}" -type f -name "*.gguf" -o -type f -name "*.GGUF" || echo "No GGUF files found"
-        echo -e "\n${BLUE}[DEBUG]${NC} All files in directory:"
-        find "${MODEL_DIR}" -type f
+        find "${MODEL_DIR}" -type f -name "*.gguf" 2>/dev/null || echo "No GGUF files found"
 
         # Find and symlink the downloaded model
-        DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f \( -name "*Q4_K_M*.gguf" -o -name "*Q4_K_M*.GGUF" \) | head -n 1)
+        DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*Q4_K_M*.gguf" 2>/dev/null | head -n 1)
 
         if [ -n "${DOWNLOADED_MODEL}" ]; then
             echo -e "${YELLOW}[ACTION]${NC} Creating symlink to downloaded model..."

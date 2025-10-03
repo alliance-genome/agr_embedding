@@ -35,7 +35,7 @@ RUN git clone https://github.com/ggml-org/llama.cpp && \
 
 # Install Python packages for model download and bc for calculations
 RUN apt-get update && apt-get install -y bc && \
-    pip3 install --no-cache-dir huggingface-hub hf-transfer && \
+    pip3 install --no-cache-dir "huggingface_hub[cli,hf_transfer]" && \
     rm -rf /var/lib/apt/lists/*
 
 # Create directory for models
