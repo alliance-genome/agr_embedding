@@ -34,6 +34,13 @@ if [ ! -d "${MODEL_DIR}" ]; then
     mkdir -p "${MODEL_DIR}"
 fi
 
+# Clean up incomplete downloads and lock files from previous failed attempts
+echo -e "\n${BLUE}[INFO]${NC} Cleaning up incomplete downloads and lock files..."
+find "${MODEL_DIR}" -name "*.incomplete" -delete 2>/dev/null || true
+find "${MODEL_DIR}" -name "*.lock" -delete 2>/dev/null || true
+find "${MODEL_DIR}" -name "*.metadata" -delete 2>/dev/null || true
+find "${MODEL_DIR}" -type d -name ".cache" -exec rm -rf {} + 2>/dev/null || true
+
 # Check if model file exists
 if [ -f "${MODEL_FILE}" ]; then
     echo -e "\n${GREEN}[SUCCESS]${NC} Model file found: ${MODEL_FILE}"
