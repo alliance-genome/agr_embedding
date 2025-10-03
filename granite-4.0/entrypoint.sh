@@ -115,9 +115,14 @@ else
         fi
 
         if [ -n "${DOWNLOADED_MODEL}" ]; then
-            echo -e "${YELLOW}[ACTION]${NC} Creating symlink to downloaded model..."
-            ln -s "${DOWNLOADED_MODEL}" "${MODEL_FILE}"
-            echo -e "${GREEN}[SUCCESS]${NC} Model ready: ${MODEL_FILE}"
+            # Only create symlink if the downloaded file has a different name
+            if [ "${DOWNLOADED_MODEL}" != "${MODEL_FILE}" ]; then
+                echo -e "${YELLOW}[ACTION]${NC} Creating symlink to downloaded model..."
+                ln -s "${DOWNLOADED_MODEL}" "${MODEL_FILE}"
+                echo -e "${GREEN}[SUCCESS]${NC} Model ready: ${MODEL_FILE}"
+            else
+                echo -e "${GREEN}[SUCCESS]${NC} Model ready: ${MODEL_FILE}"
+            fi
         else
             echo -e "${RED}[ERROR]${NC} Downloaded model not found!"
             exit 1
