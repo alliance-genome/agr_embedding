@@ -33,24 +33,29 @@ RUN git clone https://github.com/ggml-org/llama.cpp && \
     cmake --build build --config Release -j$(nproc) --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/
 
-# Install Python packages for model download
-RUN pip3 install --no-cache-dir huggingface-hub hf-transfer
+# Install Python packages for model download and bc for calculations
+RUN apt-get update && apt-get install -y bc && \
+    pip3 install --no-cache-dir huggingface-hub hf-transfer && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create directory for models
 RUN mkdir -p /app/models
 
-# Download Granite 4.0 H-Tiny GGUF model (Q4_K_M quantization)
+# Download Granite 4.0 H-Tiny GGUF model (Q4_K_M quantization) during build
 # This is ~4-5GB, 7B params with 1B active (MoE), excellent balance of quality and speed
+# NOTE: When using volume mounts, this will be overridden - the entrypoint handles re-download
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 RUN python3 -c "from huggingface_hub import snapshot_download; \
     snapshot_download( \
         repo_id='unsloth/granite-4.0-h-tiny-GGUF', \
         local_dir='/app/models', \
         allow_patterns=['*UD-Q4_K_M*'] \
-    )"
+    )" && \
+    find /app/models -name "*UD-Q4_K_M*.gguf" -exec ln -s {} /app/models/granite-4.0-h-tiny.gguf \;
 
-# Find the downloaded model file and create a symlink with a known name
-RUN find /app/models -name "*UD-Q4_K_M*.gguf" -exec ln -s {} /app/models/granite-4.0-h-tiny.gguf \;
+# Copy entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Expose port for API
 EXPOSE 8080
@@ -65,14 +70,5 @@ ENV LLAMA_CONTEXT_SIZE=16384
 ENV LLAMA_PORT=8080
 ENV LLAMA_HOST=0.0.0.0
 
-# Run llama-server with OpenAI-compatible API
-# Uses all available CPU threads and recommended Granite settings
-CMD llama-server \
-    --model /app/models/granite-4.0-h-tiny.gguf \
-    --host ${LLAMA_HOST} \
-    --port ${LLAMA_PORT} \
-    --threads ${LLAMA_THREADS} \
-    --ctx-size ${LLAMA_CONTEXT_SIZE} \
-    --n-gpu-layers 0 \
-    --log-disable \
-    --metrics
+# Use entrypoint script to handle model validation and download
+ENTRYPOINT ["/app/entrypoint.sh"]
