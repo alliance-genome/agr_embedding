@@ -176,7 +176,11 @@ exec llama-server \
     --host "${LLAMA_HOST}" \
     --port "${LLAMA_PORT}" \
     --threads "${LLAMA_THREADS}" \
+    --threads-batch "${LLAMA_THREADS}" \
     --ctx-size "${LLAMA_CONTEXT_SIZE}" \
     --n-gpu-layers 0 \
+    --batch-size 2048 \
+    --ubatch-size 512 \
+    --n-parallel 4 \
     --metrics \
     --verbose
