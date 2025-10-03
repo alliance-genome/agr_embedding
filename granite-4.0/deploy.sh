@@ -8,6 +8,7 @@ set -e
 CONTAINER_NAME="granite-4.0-api"
 IMAGE_NAME="granite-4.0-llm"
 PORT=8081
+BENCHMARK_PORT=8082
 
 echo "=== Granite 4.0 LLM Service Deployment Script ==="
 
@@ -36,10 +37,12 @@ docker run -d \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     -p $PORT:8080 \
+    -p $BENCHMARK_PORT:8082 \
     -e LLAMA_THREADS=48 \
     -e LLAMA_CONTEXT_SIZE=16384 \
     -e LLAMA_PORT=8080 \
     -e LLAMA_HOST=0.0.0.0 \
+    -e BENCHMARK_API_PORT=8082 \
     -e PYTHONUNBUFFERED=1 \
     --cpus="48.0" \
     --memory="32g" \
@@ -61,6 +64,11 @@ if docker ps | grep -q $CONTAINER_NAME; then
     echo "  - Health:           http://flysql26.alliancegenome.org:$PORT/health"
     echo "  - Models:           http://flysql26.alliancegenome.org:$PORT/v1/models"
     echo "  - Chat Completions: http://flysql26.alliancegenome.org:$PORT/v1/chat/completions"
+    echo ""
+    echo "Benchmark API:"
+    echo "  - Trigger Benchmark: POST http://flysql26.alliancegenome.org:$BENCHMARK_PORT/benchmark"
+    echo "  - Get Results:       GET  http://flysql26.alliancegenome.org:$BENCHMARK_PORT/results"
+    echo "  - Status:            GET  http://flysql26.alliancegenome.org:$BENCHMARK_PORT/status"
     echo ""
     echo "Model: Granite 4.0 H-Tiny Q8_0 (7B/1B MoE, 8-bit quantization)"
     echo "Context: 16,384 tokens (expandable to 128K)"

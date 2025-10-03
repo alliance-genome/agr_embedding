@@ -1,0 +1,94 @@
+# FlySQL26 System Specifications
+
+## Server Overview
+- **Hostname**: flysql26
+- **Architecture**: x86_64 (64-bit)
+- **Purpose**: CPU-based local LLM inference server
+
+## CPU Configuration
+- **Model**: Intel(R) Xeon(R) Gold 6240R CPU @ 2.40GHz
+- **Sockets**: 2
+- **Cores per Socket**: 24
+- **Total Cores**: 48
+- **Threads per Core**: 2
+- **Total Threads (CPUs)**: 96
+
+## CPU Performance
+- **Base Frequency**: 2.40 GHz
+- **Max Turbo Frequency**: 4.00 GHz
+- **Current Frequency**: ~1.00 GHz (power saving mode)
+- **BogoMIPS**: 4800.00
+
+## Cache Hierarchy
+- **L1d Cache**: 32 KB (per core)
+- **L1i Cache**: 32 KB (per core)
+- **L2 Cache**: 1024 KB (1 MB per core)
+- **L3 Cache**: 36608 KB (~35.75 MB shared per socket)
+
+## NUMA Configuration
+- **NUMA Nodes**: 2
+- **Node 0 CPUs**: 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94
+- **Node 1 CPUs**: 1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95
+
+## Instruction Set Extensions
+- **SSE**: sse, sse2, ssse3, sse4_1, sse4_2
+- **AVX**: avx, avx2
+- **AVX-512**: avx512f, avx512dq, avx512cd, avx512bw, avx512vl, avx512_vnni
+- **Other**: aes, fma, f16c, rdrand, rdseed, adx, bmi1, bmi2
+
+## Virtualization Support
+- **Technology**: VT-x (Intel Virtualization Technology)
+- **Features**: vmx, ept, vpid
+
+## LLM Inference Optimization Notes
+
+### Strengths for CPU-based LLM Inference
+1. **High Thread Count**: 96 threads allow excellent parallelization for CPU inference
+2. **AVX-512 Support**: Critical for accelerated tensor operations in llama.cpp
+3. **Large L3 Cache**: 35.75 MB per socket helps reduce memory latency
+4. **Dual Socket NUMA**: Can distribute model layers across NUMA nodes for better memory bandwidth
+
+### Recommended Configuration for llama.cpp
+- Use `--threads 96` for maximum parallelization
+- Enable AVX-512 optimizations in build
+- Consider NUMA-aware memory allocation for larger models
+- Models up to 13B should run well; 32B models (like Granite 4.0 H-Small) may be feasible with quantization
+
+### Expected Performance
+- **Best**: Granite 4.0 H-Micro (3B) - excellent throughput
+- **Good**: Granite 4.0 H-Tiny (7B/1B active MoE) - good balance
+- **Feasible**: Granite 4.0 H-Small (32B/9B active MoE) - lower throughput but workable with Q4 quantization
+
+---
+
+*Captured: October 3, 2025*
+*Full lscpu output below:*
+
+```
+Architecture:          x86_64
+CPU op-mode(s):        32-bit, 64-bit
+Byte Order:            Little Endian
+CPU(s):                96
+On-line CPU(s) list:   0-95
+Thread(s) per core:    2
+Core(s) per socket:    24
+Socket(s):             2
+NUMA node(s):          2
+Vendor ID:             GenuineIntel
+CPU family:            6
+Model:                 85
+Model name:            Intel(R) Xeon(R) Gold 6240R CPU @ 2.40GHz
+Stepping:              7
+CPU MHz:               1000.048
+CPU max MHz:           4000.0000
+CPU min MHz:           1000.0000
+BogoMIPS:              4800.00
+Virtualization:        VT-x
+L1d cache:             32K
+L1i cache:             32K
+L2 cache:              1024K
+L3 cache:              36608K
+NUMA node0 CPU(s):     0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,84,86,88,90,92,94
+NUMA node1 CPU(s):     1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95
+Flags:                 fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf eagerfpu pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch epb cat_l3 cdp_l3 invpcid_single intel_ppin intel_pt ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm cqm mpx rdt_a avx512f avx512dq rdseed adx smap clflushopt clwb avx512cd avx512bw avx512vl xsaveopt xsavec xgetbv1 cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local dtherm ida arat pln pts pku ospke avx512_vnni md_clear spec_ctrl intel_stibp flush_l1d arch_capabilities
+```

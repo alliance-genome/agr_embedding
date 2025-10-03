@@ -142,19 +142,62 @@ diff <(jq '.results[].tokens_per_second' bf16_results.json) \
 
 ## API Integration
 
-The benchmark can be triggered remotely and results retrieved via the exported JSON file:
+The benchmark is now available via HTTP API on port 8082.
+
+### Trigger a Benchmark via API
+
+```bash
+# Trigger benchmark (runs in background)
+curl -X POST http://10.0.70.22:8082/benchmark
+
+# Check if benchmark is still running
+curl http://10.0.70.22:8082/status
+
+# Get results when complete
+curl http://10.0.70.22:8082/results
+```
+
+### Python API Client Example
 
 ```python
-import subprocess
-import json
+import requests
+import time
 
-# Run benchmark on server
-subprocess.run(["python", "benchmark.py"])
+# Trigger benchmark
+response = requests.post("http://10.0.70.22:8082/benchmark")
+print(response.json())  # {'status': 'started', ...}
 
-# Read results
-with open("benchmark_results.json") as f:
-    results = json.load(f)
+# Wait for completion
+while True:
+    status = requests.get("http://10.0.70.22:8082/status").json()
+    if not status["running"]:
+        break
+    time.sleep(5)
 
-avg_speed = sum(r["tokens_per_second"] for r in results["results"] if r["success"]) / len(results["results"])
-print(f"Average speed: {avg_speed:.2f} tok/s")
+# Get results
+results = requests.get("http://10.0.70.22:8082/results").json()
+
+# Extract summary
+summary = results["summary"]
+print(f"Average speed: {summary['avg_speed_tokens_per_sec']:.2f} tok/s")
+print(f"Average CPU: {summary['avg_cpu_percent']:.1f}%")
+print(f"Peak Memory: {summary['peak_memory_gb']:.2f}GB")
 ```
+
+### API Endpoints
+
+**POST /benchmark**
+- Triggers a new benchmark run
+- Returns immediately, benchmark runs in background
+- Optional JSON body: `{"host": "localhost", "port": 8080}`
+
+**GET /status**
+- Check if benchmark is currently running
+- Returns: `{"running": true/false, "has_results": true/false}`
+
+**GET /results**
+- Get the latest benchmark results
+- Returns full JSON with all test results and summary
+
+**GET /health**
+- Health check for the benchmark API service

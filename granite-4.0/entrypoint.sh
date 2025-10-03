@@ -158,6 +158,14 @@ echo -e "\n${GREEN}[SUCCESS]${NC} Model validated successfully!"
 echo -e "  File: ${MODEL_FILE}"
 echo -e "  Size: ${MODEL_SIZE_GB} GB"
 
+# Start benchmark API server in background
+echo -e "\n${BLUE}[INFO]${NC} Starting benchmark API server on port 8082..."
+python3 /app/benchmark_api.py &
+BENCHMARK_API_PID=$!
+
+# Give it a moment to start
+sleep 2
+
 # Start llama-server
 echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
 echo -e "${BLUE}  Starting llama-server...${NC}"

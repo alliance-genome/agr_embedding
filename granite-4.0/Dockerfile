@@ -33,9 +33,9 @@ RUN git clone https://github.com/ggml-org/llama.cpp && \
     cmake --build build --config Release -j$(nproc) --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/
 
-# Install Python packages for model download and bc for calculations
+# Install Python packages for model download, benchmarking, and bc for calculations
 RUN apt-get update && apt-get install -y bc && \
-    pip3 install --no-cache-dir "huggingface_hub[cli,hf_transfer]" && \
+    pip3 install --no-cache-dir "huggingface_hub[cli,hf_transfer]" psutil requests flask && \
     rm -rf /var/lib/apt/lists/*
 
 # Create directory for models
@@ -44,12 +44,15 @@ RUN mkdir -p /app/models
 # Note: Model download happens at runtime via entrypoint.sh
 # This allows volume mounts to work properly and shows download progress
 
-# Copy entrypoint script
+# Copy scripts
 COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+COPY benchmark.py /app/benchmark.py
+COPY benchmark_api.py /app/benchmark_api.py
+RUN chmod +x /app/entrypoint.sh /app/benchmark.py /app/benchmark_api.py
 
-# Expose port for API
+# Expose ports for API and benchmark
 EXPOSE 8080
+EXPOSE 8082
 
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

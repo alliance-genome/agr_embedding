@@ -1,0 +1,275 @@
+# Granite 4.0 Quick Start Guide
+
+## Prerequisites
+
+- Docker and Docker Compose installed on FlySQL26
+- At least 8GB free RAM
+- Internet connection for initial model download (~2-3GB)
+
+## Step 1: Deploy to FlySQL26
+
+### Copy files to FlySQL26
+```bash
+# From your local machine
+scp -r granite-4.0/ go@flysql26.alliancegenome.org:/path/to/destination/
+```
+
+### SSH into FlySQL26
+```bash
+ssh go@flysql26.alliancegenome.org
+cd /path/to/granite-4.0
+```
+
+## Step 2: Build and Start the Server
+
+```bash
+# Build the Docker image (this will download the model)
+./deploy.sh build
+
+# Start the API server
+./deploy.sh start
+```
+
+The first build will take 10-15 minutes as it:
+1. Compiles llama.cpp with AVX-512 optimizations
+2. Downloads the Granite 4.0 H-Micro GGUF model (~2-3GB)
+
+## Step 3: Verify It's Working
+
+```bash
+# Check server status
+./deploy.sh status
+
+# Run API tests
+./deploy.sh test
+```
+
+You should see output like:
+```
+✅ Health check passed
+✅ All tests passed!
+```
+
+## Step 4: Test from AI Curation
+
+### Update AI Curation .env
+Add these lines to your AI Curation `.env` file:
+
+```bash
+# Granite 4.0 Configuration
+GRANITE_BASE_URL=http://flysql26.alliancegenome.org:8080/v1
+GRANITE_API_KEY=dummy-key
+GRANITE_MODEL=granite-4.0-h-micro
+```
+
+### Test with CrewAI
+Create `test_granite_crew.py`:
+
+```python
+from crewai import Agent, Task, Crew, LLM
+
+# Configure Granite LLM
+granite_llm = LLM(
+    model="granite-4.0-h-micro",
+    base_url="http://flysql26.alliancegenome.org:8080/v1",
+    api_key="dummy-key",
+    temperature=1.0
+)
+
+# Create test agent
+agent = Agent(
+    role="Genomics Expert",
+    goal="Answer questions about genomics",
+    backstory="An expert in genomic data and bioinformatics",
+    llm=granite_llm,
+    verbose=True
+)
+
+# Create test task
+task = Task(
+    description="What is the Alliance of Genome Resources?",
+    expected_output="A brief, accurate description",
+    agent=agent
+)
+
+# Run the crew
+crew = Crew(agents=[agent], tasks=[task], verbose=True)
+result = crew.kickoff()
+
+print("\n" + "="*50)
+print("RESULT:")
+print("="*50)
+print(result)
+```
+
+Run it:
+```bash
+python test_granite_crew.py
+```
+
+## Common Commands
+
+```bash
+# View logs in real-time
+./deploy.sh logs
+
+# Restart the server
+./deploy.sh restart
+
+# Stop the server
+./deploy.sh stop
+
+# Check resource usage
+docker stats granite-4.0-api
+```
+
+## API Endpoints
+
+Once running, the following endpoints are available:
+
+- **Health**: `GET http://flysql26.alliancegenome.org:8080/health`
+- **Models**: `GET http://flysql26.alliancegenome.org:8080/v1/models`
+- **Chat**: `POST http://flysql26.alliancegenome.org:8080/v1/chat/completions`
+
+### Example API Call (curl)
+
+```bash
+curl -X POST http://flysql26.alliancegenome.org:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "granite-4.0-h-micro",
+    "messages": [
+      {"role": "user", "content": "Explain what a gene is in simple terms."}
+    ],
+    "temperature": 1.0,
+    "max_tokens": 200
+  }'
+```
+
+### Example API Call (Python)
+
+```python
+import requests
+
+response = requests.post(
+    "http://flysql26.alliancegenome.org:8080/v1/chat/completions",
+    json={
+        "model": "granite-4.0-h-micro",
+        "messages": [
+            {"role": "user", "content": "What is genomics?"}
+        ],
+        "temperature": 1.0,
+        "max_tokens": 200
+    }
+)
+
+print(response.json()["choices"][0]["message"]["content"])
+```
+
+## Performance Tuning
+
+### Increase Context Window
+Edit `.env`:
+```bash
+LLAMA_CONTEXT_SIZE=32768  # Or up to 131072 (128K)
+```
+
+Then restart:
+```bash
+./deploy.sh restart
+```
+
+### Adjust Thread Count
+If you need to reserve CPU for other tasks:
+```bash
+LLAMA_THREADS=48  # Use half the available threads
+```
+
+### Monitor Performance
+```bash
+# Real-time resource monitoring
+docker stats granite-4.0-api
+
+# Check logs for token generation speed
+./deploy.sh logs | grep "tokens/s"
+```
+
+## Troubleshooting
+
+### Server won't start
+```bash
+# Check logs
+./deploy.sh logs
+
+# Common issues:
+# 1. Port 8080 already in use
+#    Solution: Change LLAMA_PORT in .env
+
+# 2. Out of memory
+#    Solution: Close other applications or use smaller context size
+```
+
+### Slow responses
+```bash
+# Check if server is actually using all threads
+docker exec granite-4.0-api top
+
+# Verify AVX-512 is enabled (should see in build logs)
+./deploy.sh build 2>&1 | grep -i avx
+```
+
+### Connection refused from AI Curation
+```bash
+# Test from the AI Curation server
+curl http://flysql26.alliancegenome.org:8080/health
+
+# Check firewall rules if needed
+```
+
+## Next Steps
+
+1. ✅ Server deployed and tested
+2. ⬜ Update AI Curation to use Granite for testing
+3. ⬜ Benchmark performance vs OpenAI
+4. ⬜ Set up monitoring/alerting
+5. ⬜ Configure automatic restart on server reboot
+
+## Automatic Startup on Boot
+
+To make Granite start automatically when FlySQL26 reboots:
+
+```bash
+# Create systemd service
+sudo tee /etc/systemd/system/granite-api.service > /dev/null <<EOF
+[Unit]
+Description=Granite 4.0 LLM API Server
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/path/to/granite-4.0
+ExecStart=/usr/local/bin/docker-compose up -d
+ExecStop=/usr/local/bin/docker-compose down
+User=go
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start
+sudo systemctl enable granite-api
+sudo systemctl start granite-api
+```
+
+## Support
+
+For issues, questions, or suggestions:
+- Check logs: `./deploy.sh logs`
+- Review documentation: `README.md`, `CREWAI_INTEGRATION.md`
+- Contact: Chris Tabone
+
+---
+
+*Updated: October 3, 2025*

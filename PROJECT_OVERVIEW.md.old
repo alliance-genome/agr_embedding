@@ -1,0 +1,216 @@
+# AGR Local LLM Project Overview
+
+## Purpose
+
+This repository provides **local, self-hosted AI model services** for Alliance of Genome Resources (AGR) applications, eliminating dependency on external API providers and reducing costs.
+
+## Current Capabilities
+
+### 1. Embedding API (Production)
+**Location**: Root directory
+**Status**: ✅ Production-ready
+**Purpose**: Generate high-quality text embeddings for semantic search and similarity matching
+
+**Model**: Qwen3-Embedding-8B (4096-dimensional embeddings)
+**Performance**: Optimized for 96-core CPU systems
+**API**: FastAPI server with OpenAPI docs
+
+See [README.md](README.md) for full embedding API documentation.
+
+---
+
+### 2. Granite 4.0 LLM API (New - In Development)
+**Location**: `granite-4.0/` directory
+**Status**: 🚧 Ready for deployment and testing
+**Purpose**: Self-hosted LLM for CrewAI agents in AI Curation application
+
+**Model**: IBM Granite 4.0 H-Micro (3B parameters)
+**Architecture**: Hybrid Mamba for fast CPU inference
+**API**: OpenAI-compatible endpoint via llama.cpp
+**Integration**: Drop-in replacement for OpenAI API in CrewAI
+
+#### Key Files
+```
+granite-4.0/
+├── README.md                      # Model overview and capabilities
+├── CREWAI_INTEGRATION.md          # How to integrate with AI Curation
+├── QUICKSTART.md                  # Step-by-step deployment guide
+├── Dockerfile                     # Production container image
+├── docker-compose.yml             # Easy deployment config
+├── deploy.sh                      # Deployment automation script
+├── .env.example                   # Configuration template
+└── test_crewai_integration.py     # Integration test script
+```
+
+#### Quick Start
+```bash
+cd granite-4.0/
+./deploy.sh build   # Build container (~10-15 min first time)
+./deploy.sh start   # Start API server
+./deploy.sh test    # Run tests
+```
+
+See [granite-4.0/QUICKSTART.md](granite-4.0/QUICKSTART.md) for detailed instructions.
+
+---
+
+## System Specifications
+
+**Server**: FlySQL26
+**CPU**: Dual Intel Xeon Gold 6240R (96 threads total)
+**Architecture**: x86_64 with AVX-512 support
+**Optimization**: Both services optimized for CPU-only inference
+
+See [SYSTEM_SPECS.md](SYSTEM_SPECS.md) for complete hardware details.
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      FlySQL26 Server                         │
+│                   (96 CPU Threads, AVX-512)                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌────────────────────────┐  ┌─────────────────────────┐   │
+│  │   Embedding API        │  │   Granite 4.0 LLM API   │   │
+│  │   (Port 9000)          │  │   (Port 8080)           │   │
+│  │                        │  │                         │   │
+│  │  Qwen3-Embedding-8B    │  │  Granite 4.0 H-Micro    │   │
+│  │  FastAPI Server        │  │  llama.cpp Server       │   │
+│  │  4096-dim Embeddings   │  │  OpenAI-compatible API  │   │
+│  └────────────────────────┘  └─────────────────────────┘   │
+│           │                            │                     │
+│           │                            │                     │
+└───────────┼────────────────────────────┼─────────────────────┘
+            │                            │
+            ▼                            ▼
+    ┌───────────────┐          ┌──────────────────┐
+    │   RAG/Search  │          │  AI Curation     │
+    │   Pipeline    │          │  (CrewAI Agents) │
+    └───────────────┘          └──────────────────┘
+```
+
+---
+
+## Cost Savings
+
+### Embedding API
+- **OpenAI Equivalent**: text-embedding-3-large ($0.13 per 1M tokens)
+- **Our Cost**: Infrastructure only (~$0)
+- **Quality**: Comparable or better (MTEB #1 multilingual)
+
+### Granite 4.0 LLM
+- **OpenAI Equivalent**: gpt-4o-mini ($0.15-$0.60 per 1M tokens)
+- **Our Cost**: Infrastructure only (~$0)
+- **Expected Savings**: 100% of LLM API costs for AI Curation
+
+---
+
+## Performance Expectations
+
+### Embedding API (Current)
+- **First request**: 10-30 seconds (model compilation)
+- **Subsequent requests**: 1-5 seconds for small batches
+- **Batch optimization**: Best with 8-32 texts
+
+### Granite 4.0 LLM (Estimated)
+- **First token latency**: ~100-200ms
+- **Throughput**: 50-100 tokens/second
+- **Context window**: Up to 128K tokens
+- **Concurrent sessions**: 10+ supported
+
+---
+
+## Integration Points
+
+### 1. Embedding API
+**Current Users**:
+- Any application needing semantic embeddings
+- Document similarity search
+- Retrieval-Augmented Generation (RAG)
+
+**API Format**: Custom FastAPI endpoints
+
+### 2. Granite 4.0 LLM
+**Target User**: AI Curation Prototype (CrewAI-based)
+**Integration Method**:
+- Drop-in replacement via `base_url` parameter
+- OpenAI-compatible API format
+- No code changes required in agents
+
+**Example**:
+```python
+from crewai import LLM
+
+llm = LLM(
+    model="granite-4.0-h-micro",
+    base_url="http://flysql26:8080/v1",
+    api_key="dummy-key"
+)
+```
+
+---
+
+## Deployment Status
+
+| Service | Status | Port | Health Check |
+|---------|--------|------|--------------|
+| Embedding API | ✅ Production | 9000 | `GET /health` |
+| Granite LLM | 🚧 Ready | 8080 | `GET /health` |
+
+---
+
+## Next Steps
+
+### Immediate (Granite 4.0)
+1. ✅ Complete documentation and deployment scripts
+2. ⬜ Deploy to FlySQL26 and run initial tests
+3. ⬜ Integrate with AI Curation development environment
+4. ⬜ Benchmark performance vs OpenAI
+5. ⬜ Deploy to production with fallback mechanism
+
+### Future Enhancements
+1. **Monitoring**: Add Prometheus metrics for both services
+2. **Load Balancing**: Scale horizontally if needed
+3. **Model Updates**: Test newer Granite versions as released
+4. **Additional Models**: Evaluate other open-source LLMs
+
+---
+
+## Repository Structure
+
+```
+agr_local_llm/
+├── PROJECT_OVERVIEW.md           # This file
+├── SYSTEM_SPECS.md               # Hardware specifications
+├── README.md                     # Embedding API documentation
+├── server.py                     # Embedding API server
+├── requirements.txt              # Python dependencies
+├── Dockerfile                    # Embedding API container
+├── deploy.sh                     # Embedding API deployment
+│
+└── granite-4.0/                  # Granite LLM service
+    ├── README.md                 # Model overview
+    ├── QUICKSTART.md             # Deployment guide
+    ├── CREWAI_INTEGRATION.md     # Integration details
+    ├── Dockerfile                # LLM API container
+    ├── docker-compose.yml        # Deployment config
+    ├── deploy.sh                 # Deployment automation
+    └── test_crewai_integration.py # Integration tests
+```
+
+---
+
+## Support & Maintenance
+
+**Owner**: Chris Tabone
+**Purpose**: Production services for AGR applications
+**Server**: FlySQL26 (flysql26.alliancegenome.org)
+
+For issues or questions, consult the specific README files in each directory.
+
+---
+
+*Last Updated: October 3, 2025*
