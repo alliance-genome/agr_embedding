@@ -1,208 +1,198 @@
-# AGR Embedding API
+# Alliance Genome Resources - Local LLM Services
 
-Production-ready FastAPI server for running open-source embedding models with CPU optimization.
+Self-hosted AI model services for the Alliance of Genome Resources (AGR), providing cost-effective alternatives to commercial API providers while maintaining data privacy and control.
 
-**Current Models:**
-- Qwen3-Embedding (8B/4B/0.6B)
+## Overview
 
-**Planned Models:**
-- BGE-M3
-- E5-Large
-- GTE-Large
+This repository contains infrastructure and deployment configurations for running large language models (LLMs) and embedding models locally within the Alliance infrastructure. These services enable AI-powered features in AGR applications without relying on external API providers.
 
-## Features
+## Services
 
-- **CPU-optimized**: Uses torch.compile and multi-threading for best CPU performance
-- **OpenAPI docs**: Auto-generated at `/docs`
-- **Health checks**: `/health` endpoint
-- **Query optimization**: Automatic instruction formatting for queries
-- **Batching**: Process multiple texts in one request
+### 1. Granite 4.0 LLM Service
 
-## Setup
+**Location**: `granite-4.0/`
 
-### 1. Install Dependencies
+IBM's open-source Granite 4.0 language models optimized for CPU-based inference. Provides OpenAI-compatible API endpoints for seamless integration with existing applications.
 
-```bash
-cd ~/qwen3-embedding-api
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+**Features:**
+- Multiple model sizes (3B to 32B parameters)
+- Mixture of Experts (MoE) architecture for efficient inference
+- Up to 128K token context window
+- OpenAI-compatible REST API
+- Docker-based deployment
+
+**Use Cases:**
+- CrewAI agent workflows
+- Data extraction and curation
+- Text classification and analysis
+- Question answering systems
+
+See [granite-4.0/README.md](granite-4.0/README.md) for deployment instructions.
+
+---
+
+### 2. Embedding Service
+
+**Location**: `embedding-service/`
+
+High-performance text embedding service using Qwen3-Embedding models. Generates semantic embeddings for similarity search and retrieval-augmented generation (RAG) applications.
+
+**Features:**
+- State-of-the-art multilingual embeddings
+- CPU-optimized inference
+- Batch processing support
+- Query-specific instruction formatting
+
+**Use Cases:**
+- Semantic search
+- Document similarity
+- RAG pipelines
+- Vector database integration
+
+See [embedding-service/README.md](embedding-service/README.md) for deployment instructions.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│          AGR Applications               │
+│  (AI Curation, Data Processing, etc.)   │
+└──────────────┬──────────────────────────┘
+               │
+     ┌─────────┴─────────┐
+     │                   │
+     ▼                   ▼
+┌─────────────┐   ┌──────────────┐
+│  Granite    │   │  Embedding   │
+│  LLM API    │   │  Service     │
+│  (Port TBD) │   │  (Port TBD)  │
+└─────────────┘   └──────────────┘
 ```
 
-### 2. Set Up Pre-Commit Hooks (Optional but Recommended)
+## Benefits
 
-Install pre-commit hooks to prevent secrets from being committed:
+### Cost Savings
+- **Eliminate API Costs**: No per-token charges for LLM/embedding usage
+- **Infrastructure Only**: One-time setup on existing hardware
+- **Scalable**: Handle unlimited requests without usage fees
 
+### Data Privacy
+- **On-Premise**: All data processing happens within Alliance infrastructure
+- **No External APIs**: Sensitive genomic data never leaves the organization
+- **Full Control**: Complete control over model versions and configurations
+
+### Performance
+- **Low Latency**: Local deployment minimizes network overhead
+- **High Availability**: No dependency on external service uptime
+- **Customizable**: Optimize for specific workloads and requirements
+
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- CPU with AVX-512 support (recommended)
+- Minimum 8GB RAM (16GB+ recommended)
+- 10GB+ free disk space
+
+### Deployment
+
+Each service has its own deployment guide:
+
+**Granite 4.0 LLM:**
 ```bash
-pip install pre-commit
-pre-commit install
+cd granite-4.0/
+./deploy.sh
 ```
 
-This will run gitleaks before each commit to check for exposed secrets.
-
-### 3. Set CPU Thread Count (Optional)
-
-For your 96-core system, set to use ~48 threads (half your cores):
-
+**Embedding Service:**
 ```bash
-export OMP_NUM_THREADS=48
-export MKL_NUM_THREADS=48
+cd embedding-service/
+./deploy.sh
 ```
 
-### 4. Start Server
+### Management
+
+Both services use similar management scripts:
 
 ```bash
-# Development mode
-python server.py
-
-# Production mode with uvicorn
-uvicorn server:app --host 0.0.0.0 --port 9000 --workers 1
+./manage.sh status    # Check service health
+./manage.sh logs      # View logs
+./manage.sh restart   # Restart service
+./manage.sh test      # Run tests
 ```
 
-**Note**: First startup downloads the ~16GB model from HuggingFace. This takes time!
+## Integration Examples
 
-## Usage
+### Granite LLM with CrewAI
+```python
+from crewai import Agent, LLM
 
-### Health Check
+llm = LLM(
+    model="granite-4.0-h-tiny",
+    base_url="http://your-server:port/v1",
+    api_key="dummy-key"
+)
 
-```bash
-curl http://localhost:9000/health
+agent = Agent(
+    role="Data Curator",
+    llm=llm,
+    ...
+)
 ```
 
-### Embed Documents (No Instruction)
-
-```bash
-curl -X POST http://localhost:9000/embed \
-  -H "Content-Type: application/json" \
-  -d '{
-    "texts": [
-      "The capital of China is Beijing.",
-      "Gravity is a fundamental force of nature."
-    ],
-    "normalize": true
-  }'
-```
-
-### Embed Queries (With Instruction)
-
-```bash
-curl -X POST http://localhost:9000/embed/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "texts": [
-      "What is the capital of China?",
-      "Explain gravity"
-    ],
-    "instruction": "Given a web search query, retrieve relevant passages that answer the query"
-  }'
-```
-
-### Python Client Example
-
+### Embedding Service
 ```python
 import requests
 
-# Embed documents
 response = requests.post(
-    "http://localhost:9000/embed",
+    "http://your-server:port/embed",
     json={
-        "texts": ["Document text 1", "Document text 2"],
+        "texts": ["Your text here"],
         "normalize": True
     }
 )
 embeddings = response.json()["embeddings"]
-print(f"Got {len(embeddings)} embeddings of dimension {len(embeddings[0])}")
-
-# Embed queries (with instruction)
-response = requests.post(
-    "http://localhost:9000/embed/query",
-    json={
-        "texts": ["What is X?", "How does Y work?"],
-        "instruction": "Given a web search query, retrieve relevant passages"
-    }
-)
-query_embeddings = response.json()["embeddings"]
 ```
 
-## API Endpoints
+## Model Selection
 
-- **GET /** - API info
-- **GET /health** - Health check
-- **POST /embed** - Generate embeddings
-- **POST /embed/query** - Generate query embeddings (auto-adds instruction)
-- **GET /docs** - Interactive API documentation
+### Granite 4.0 Variants
 
-## Performance Tips
+| Model | Params | Active | Speed | Quality | Memory |
+|-------|--------|--------|-------|---------|--------|
+| H-Micro | 3B | 3B | ⚡⚡⚡⚡⚡ | ⭐⭐⭐ | 2-3 GB |
+| H-Tiny | 7B | 1B MoE | ⚡⚡⚡⚡ | ⭐⭐⭐⭐ | 4-5 GB |
+| H-Small | 32B | 9B MoE | ⚡⚡ | ⭐⭐⭐⭐⭐ | 15-20 GB |
 
-### CPU Optimization
+See [granite-4.0/MODEL_COMPARISON.md](granite-4.0/MODEL_COMPARISON.md) for detailed comparison.
 
-1. **Use all cores**: Set `OMP_NUM_THREADS` to your core count
-2. **Batch requests**: Send multiple texts in one request
-3. **Torch compile**: Enabled by default (20-30% speedup after warmup)
+## Documentation
 
-### Expected Performance (96-core Xeon Gold 6240R)
+- **Granite 4.0**:
+  - [README.md](granite-4.0/README.md) - Model overview
+  - [QUICKSTART.md](granite-4.0/QUICKSTART.md) - Deployment guide
+  - [CREWAI_INTEGRATION.md](granite-4.0/CREWAI_INTEGRATION.md) - CrewAI integration
+  - [MODEL_COMPARISON.md](granite-4.0/MODEL_COMPARISON.md) - Model selection guide
 
-- **First request**: ~10-30 seconds (model compilation)
-- **Subsequent requests**: ~1-5 seconds for small batches
-- **Batch size**: Try batches of 8-32 texts for best throughput
+- **Embedding Service**:
+  - [README.md](embedding-service/README.md) - Service documentation
 
-### Memory Usage
+## Contributing
 
-- **Model size**: ~16GB on disk, ~20GB in RAM
-- **Per request**: +1-2GB depending on batch size and sequence length
+Contributions are welcome! Please ensure:
+- Documentation is clear and up-to-date
+- Scripts follow existing patterns
+- Changes are tested in a development environment first
 
-## Systemd Service (Optional)
+## License
 
-Create `/etc/systemd/system/qwen3-embedding.service`:
+See [LICENSE](LICENSE) file for details.
 
-```ini
-[Unit]
-Description=Qwen3 Embedding API
-After=network.target
+## Support
 
-[Service]
-Type=simple
-User=your-user
-WorkingDirectory=/home/your-user/qwen3-embedding-api
-Environment="OMP_NUM_THREADS=48"
-Environment="MKL_NUM_THREADS=48"
-ExecStart=/home/your-user/qwen3-embedding-api/venv/bin/uvicorn server:app --host 0.0.0.0 --port 9000
-Restart=on-failure
+For issues, questions, or feature requests, please open an issue on GitHub.
 
-[Install]
-WantedBy=multi-user.target
-```
+---
 
-Then:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable qwen3-embedding
-sudo systemctl start qwen3-embedding
-```
-
-## Troubleshooting
-
-### Model download fails
-```bash
-# Set HuggingFace cache directory
-export HF_HOME=/path/to/large/storage
-```
-
-### Out of memory
-- Reduce batch size
-- Reduce max_length
-- Close other applications
-
-### Slow inference
-- Check `torch.get_num_threads()` in /health response
-- Increase OMP_NUM_THREADS
-- Wait for torch.compile to optimize (first few requests are slow)
-
-## Model Info
-
-- **Name**: Qwen/Qwen3-Embedding-8B
-- **Parameters**: 8 billion
-- **Embedding Dimension**: 4096
-- **Max Sequence Length**: 32,768 tokens
-- **Languages**: 100+ (multilingual)
-- **MTEB Score**: 70.58 (multilingual leaderboard #1)
+**Alliance of Genome Resources**
+*Advancing genomics through collaboration*
