@@ -178,11 +178,11 @@ echo -e "${BLUE}═════════════════════�
 # - batch-size=1024: Reduced from 2048 for better CPU performance
 # - ubatch-size=160: Optimized for CPU memory bandwidth
 # - parallel=2: Support up to 2 concurrent requests
-# - kv-type q8_0: Quantized KV cache for ~20-30% speed boost (now supported!)
 # - mlock: Lock model in RAM to prevent swapping
 # - no-mmap: Disable memory mapping for better NUMA locality
 # - numa distribute: Distribute threads equally across NUMA nodes
 # Note: OMP_NUM_THREADS=1 set in Dockerfile to prevent OpenBLAS double-threading
+# Note: --kv-type not available in current llama.cpp version (future optimization)
 
 exec numactl --interleave=all \
 llama-server \
@@ -196,7 +196,6 @@ llama-server \
     --batch-size 1024 \
     --ubatch-size 160 \
     --parallel 2 \
-    --kv-type q8_0 \
     --mlock \
     --no-mmap \
     --numa distribute \
