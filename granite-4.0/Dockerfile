@@ -7,7 +7,7 @@ FROM ubuntu:22.04
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies and Python
+# Install build dependencies, Python, and OpenBLAS
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
@@ -17,13 +17,16 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     numactl \
+    libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Clone and build llama.cpp with CPU optimizations (AVX-512 + VNNI)
-# Note: GGML_CUDA=OFF since this is CPU-only
+# Clone and build llama.cpp with full CPU optimizations
+# - AVX-512 + VNNI for Intel Xeon 6240R
+# - OpenBLAS for accelerated prompt processing
+# - K-quants enabled for KV cache quantization support
 RUN git clone https://github.com/ggml-org/llama.cpp && \
     cd llama.cpp && \
     cmake -B build \
@@ -31,7 +34,11 @@ RUN git clone https://github.com/ggml-org/llama.cpp && \
         -DGGML_CUDA=OFF \
         -DLLAMA_CURL=ON \
         -DGGML_AVX512=ON \
-        -DGGML_AVX512_VNNI=ON && \
+        -DGGML_AVX512_VNNI=ON \
+        -DLLAMA_BLAS=ON \
+        -DLLAMA_BLAS_VENDOR=OpenBLAS \
+        -DGGML_K_QUANTS=ON \
+        -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release -j$(nproc) --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/
 
@@ -65,6 +72,7 @@ ENV LLAMA_THREADS=64
 ENV LLAMA_CONTEXT_SIZE=8192
 ENV LLAMA_PORT=8080
 ENV LLAMA_HOST=0.0.0.0
+ENV OMP_NUM_THREADS=1
 
 # Use entrypoint script to handle model validation and download
 ENTRYPOINT ["/app/entrypoint.sh"]
