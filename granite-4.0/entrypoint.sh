@@ -190,10 +190,10 @@ llama-server \
     --threads 64 \
     --threads-batch 28 \
     --ctx-size "${LLAMA_CONTEXT_SIZE}" \
-    --n-gpu-layers 0 \
+    -ngl 0 \
     --batch-size 1024 \
     --ubatch-size 160 \
-    --n-parallel 2 \
+    --parallel 2 \
     --kv-type q8_0 \
     --mlock \
     --no-mmap \
