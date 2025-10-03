@@ -36,6 +36,7 @@ echo "Starting Granite 4.0 service..."
 docker run -d \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
+    --cap-add=SYS_NICE \
     -p $PORT:8080 \
     -p $BENCHMARK_PORT:8082 \
     -e LLAMA_THREADS=64 \

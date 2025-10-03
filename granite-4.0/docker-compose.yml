@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: granite-4.0-api
+    cap_add:
+      - SYS_NICE
     ports:
       - "8081:8080"
       - "8082:8082"
