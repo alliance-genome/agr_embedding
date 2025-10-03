@@ -190,18 +190,18 @@ echo -e "  GOTO_NUM_THREADS=${GOTO_NUM_THREADS}"
 echo -e "  OMP_NUM_THREADS=${OMP_NUM_THREADS}"
 echo -e "  OMP_DYNAMIC=${OMP_DYNAMIC}"
 
-# NUMA-optimized configuration for dual-socket Xeon 6240R:
+# Optimized configuration for dual-socket Xeon 6240R:
 # - threads=56: Conservative thread count (leaves headroom for OS/server threads)
 # - threads-batch=56: Same as threads for balanced processing
 # - batch-size=512: Reduced from 1024 for better CPU cache utilization
 # - ubatch-size=128: Reduced from 160 for better CPU performance
 # - parallel=1: Single request focus for testing (can increase after optimization)
+# - cache-type-k/v q8_0: Quantize KV cache to 8-bit (saves memory, minimal quality loss)
 # - mlock: Lock model in RAM to prevent swapping
 # - no-mmap: Disable memory mapping for better NUMA locality
-# - numa distribute: Distribute threads equally across NUMA nodes (handles interleaving internally)
-# Note: Removed numactl wrapper to avoid conflict with --numa distribute
-# Note: OpenBLAS thread control above prevents thread explosion (was 161 threads!)
-# Note: --kv-type not available in current llama.cpp version (future optimization)
+# Note: Removed --numa distribute (was creating 153 threads instead of 56!)
+# Note: OS-level NUMA scheduling handles cross-socket memory access
+# Note: No OpenBLAS linked (blank ldd output confirmed)
 
 exec llama-server \
     --model "${MODEL_FILE}" \
@@ -214,8 +214,9 @@ exec llama-server \
     --batch-size 512 \
     --ubatch-size 128 \
     --parallel 1 \
+    --cache-type-k q8_0 \
+    --cache-type-v q8_0 \
     --mlock \
     --no-mmap \
-    --numa distribute \
     --metrics \
     --verbose
