@@ -8,11 +8,14 @@ services:
     container_name: granite-4.0-api
     ports:
       - "8081:8080"
+      - "8082:8082"
     environment:
-      - LLAMA_THREADS=${LLAMA_THREADS:-96}
-      - LLAMA_CONTEXT_SIZE=${LLAMA_CONTEXT_SIZE:-16384}
+      - LLAMA_THREADS=${LLAMA_THREADS:-64}
+      - LLAMA_CONTEXT_SIZE=${LLAMA_CONTEXT_SIZE:-8192}
       - LLAMA_PORT=8080
       - LLAMA_HOST=0.0.0.0
+      - BENCHMARK_API_PORT=8082
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     volumes:
       # Persistent model storage (survives container restarts)
@@ -25,12 +28,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    # Resource limits (optional, adjust based on needs)
+    # Resource limits - NUMA-optimized for dual-socket Xeon 6240R
     deploy:
       resources:
         limits:
-          cpus: '96'
-          memory: 16G
+          cpus: '64'
+          memory: 96G
         reservations:
-          cpus: '48'
-          memory: 8G
+          cpus: '32'
+          memory: 32G

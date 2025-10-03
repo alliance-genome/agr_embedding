@@ -166,21 +166,37 @@ BENCHMARK_API_PID=$!
 # Give it a moment to start
 sleep 2
 
-# Start llama-server
+# Start llama-server with NUMA awareness for dual-socket optimization
 echo -e "\n${BLUE}═══════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}  Starting llama-server...${NC}"
+echo -e "${BLUE}  Starting llama-server with NUMA optimizations...${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
 
-exec llama-server \
+# NUMA-optimized configuration for dual-socket Xeon 6240R:
+# - numactl --interleave=all: Distribute memory across NUMA nodes
+# - threads=64: Use more CPU cores (physical + some HT)
+# - threads-batch=28: Separate prompt processing threads
+# - batch-size=1024: Reduced from 2048 for better CPU performance
+# - ubatch-size=160: Optimized for CPU memory bandwidth
+# - n-parallel=2: Reduced from 4 to avoid contention
+# - kv-type=q8_0: Quantized KV cache for ~20-30% speed boost
+# - mlock + no-mmap: Better NUMA locality and memory management
+# - numa: Enable llama.cpp's internal NUMA awareness
+
+exec numactl --interleave=all \
+llama-server \
     --model "${MODEL_FILE}" \
     --host "${LLAMA_HOST}" \
     --port "${LLAMA_PORT}" \
-    --threads "${LLAMA_THREADS}" \
-    --threads-batch "${LLAMA_THREADS}" \
+    --threads 64 \
+    --threads-batch 28 \
     --ctx-size "${LLAMA_CONTEXT_SIZE}" \
     --n-gpu-layers 0 \
-    --batch-size 2048 \
-    --ubatch-size 512 \
-    --n-parallel 4 \
+    --batch-size 1024 \
+    --ubatch-size 160 \
+    --n-parallel 2 \
+    --kv-type q8_0 \
+    --mlock \
+    --no-mmap \
+    --numa \
     --metrics \
     --verbose

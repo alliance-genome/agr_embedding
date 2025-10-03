@@ -16,12 +16,13 @@ RUN apt-get update && apt-get install -y \
     git \
     python3 \
     python3-pip \
+    numactl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Clone and build llama.cpp with CPU optimizations (AVX-512)
+# Clone and build llama.cpp with CPU optimizations (AVX-512 + VNNI)
 # Note: GGML_CUDA=OFF since this is CPU-only
 RUN git clone https://github.com/ggml-org/llama.cpp && \
     cd llama.cpp && \
@@ -29,7 +30,8 @@ RUN git clone https://github.com/ggml-org/llama.cpp && \
         -DBUILD_SHARED_LIBS=OFF \
         -DGGML_CUDA=OFF \
         -DLLAMA_CURL=ON \
-        -DGGML_AVX512=ON && \
+        -DGGML_AVX512=ON \
+        -DGGML_AVX512_VNNI=ON && \
     cmake --build build --config Release -j$(nproc) --target llama-server && \
     cp build/bin/llama-server /usr/local/bin/
 
@@ -59,8 +61,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Set environment variables for runtime configuration
-ENV LLAMA_THREADS=48
-ENV LLAMA_CONTEXT_SIZE=16384
+ENV LLAMA_THREADS=64
+ENV LLAMA_CONTEXT_SIZE=8192
 ENV LLAMA_PORT=8080
 ENV LLAMA_HOST=0.0.0.0
 
