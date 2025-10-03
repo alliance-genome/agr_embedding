@@ -36,13 +36,13 @@ docker run -d \
     --name $CONTAINER_NAME \
     --restart unless-stopped \
     -p $PORT:8080 \
-    -e LLAMA_THREADS=96 \
+    -e LLAMA_THREADS=48 \
     -e LLAMA_CONTEXT_SIZE=16384 \
     -e LLAMA_PORT=8080 \
     -e LLAMA_HOST=0.0.0.0 \
     -e PYTHONUNBUFFERED=1 \
-    --cpus="96.0" \
-    --memory="16g" \
+    --cpus="48.0" \
+    --memory="32g" \
     -v $(pwd)/models:/app/models \
     -v $(pwd)/logs:/app/logs \
     $IMAGE_NAME:latest
@@ -62,9 +62,9 @@ if docker ps | grep -q $CONTAINER_NAME; then
     echo "  - Models:           http://flysql26.alliancegenome.org:$PORT/v1/models"
     echo "  - Chat Completions: http://flysql26.alliancegenome.org:$PORT/v1/chat/completions"
     echo ""
-    echo "Model: Granite 4.0 H-Tiny (7B/1B MoE)"
+    echo "Model: Granite 4.0 H-Tiny BF16 (7B/1B MoE, full precision)"
     echo "Context: 16,384 tokens (expandable to 128K)"
-    echo "Threads: 96 CPU threads"
+    echo "Resources: 48 CPU threads, 32GB RAM"
     echo ""
     echo "Note: Model is loading. Check status with:"
     echo "  ./manage.sh status"
