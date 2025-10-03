@@ -191,7 +191,8 @@ echo -e "  OMP_NUM_THREADS=${OMP_NUM_THREADS}"
 echo -e "  OMP_DYNAMIC=${OMP_DYNAMIC}"
 
 # Optimized configuration for dual-socket Xeon 6240R:
-# - threads=56: Conservative thread count (leaves headroom for OS/server threads)
+# - cpu-range 0-55: FORCE limit to 56 cores (llama.cpp ignores --threads!)
+# - threads=56: Thread count (but llama.cpp auto-detects all cores without cpu-range)
 # - threads-batch=56: Same as threads for balanced processing
 # - batch-size=512: Reduced from 1024 for better CPU cache utilization
 # - ubatch-size=128: Reduced from 160 for better CPU performance
@@ -199,14 +200,15 @@ echo -e "  OMP_DYNAMIC=${OMP_DYNAMIC}"
 # - cache-type-k/v q8_0: Quantize KV cache to 8-bit (saves memory, minimal quality loss)
 # - mlock: Lock model in RAM to prevent swapping
 # - no-mmap: Disable memory mapping for better NUMA locality
-# Note: Removed --numa distribute (was creating 153 threads instead of 56!)
-# Note: OS-level NUMA scheduling handles cross-socket memory access
+# Note: --threads 56 was being IGNORED, resulting in 154 threads (all 96 cores + overhead)
+# Note: --cpu-range physically limits which cores can be used
 # Note: No OpenBLAS linked (blank ldd output confirmed)
 
 exec llama-server \
     --model "${MODEL_FILE}" \
     --host "${LLAMA_HOST}" \
     --port "${LLAMA_PORT}" \
+    --cpu-range 0-55 \
     --threads 56 \
     --threads-batch 56 \
     --ctx-size "${LLAMA_CONTEXT_SIZE}" \
