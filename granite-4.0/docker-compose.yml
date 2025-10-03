@@ -12,12 +12,19 @@ services:
       - "8081:8080"
       - "8082:8082"
     environment:
-      - LLAMA_THREADS=${LLAMA_THREADS:-64}
+      - LLAMA_THREADS=${LLAMA_THREADS:-56}
       - LLAMA_CONTEXT_SIZE=${LLAMA_CONTEXT_SIZE:-8192}
       - LLAMA_PORT=8080
       - LLAMA_HOST=0.0.0.0
       - BENCHMARK_API_PORT=8082
       - PYTHONUNBUFFERED=1
+      # OpenBLAS thread control (prevents thread explosion)
+      - OPENBLAS_NUM_THREADS=1
+      - GOTO_NUM_THREADS=1
+      - OMP_NUM_THREADS=1
+      - OMP_DYNAMIC=FALSE
+      - OMP_NESTED=FALSE
+      - OMP_MAX_ACTIVE_LEVELS=1
     restart: unless-stopped
     volumes:
       # Persistent model storage (survives container restarts)

@@ -77,11 +77,19 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Set environment variables for runtime configuration
-ENV LLAMA_THREADS=64
+ENV LLAMA_THREADS=56
 ENV LLAMA_CONTEXT_SIZE=8192
 ENV LLAMA_PORT=8080
 ENV LLAMA_HOST=0.0.0.0
+
+# Thread control - CRITICAL for preventing thread explosion
+# OpenBLAS uses pthreads backend (not OpenMP), so OMP_NUM_THREADS doesn't control it!
+ENV OPENBLAS_NUM_THREADS=1
+ENV GOTO_NUM_THREADS=1
 ENV OMP_NUM_THREADS=1
+ENV OMP_DYNAMIC=FALSE
+ENV OMP_NESTED=FALSE
+ENV OMP_MAX_ACTIVE_LEVELS=1
 
 # Use entrypoint script to handle model validation and download
 ENTRYPOINT ["/app/entrypoint.sh"]

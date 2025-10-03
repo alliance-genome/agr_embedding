@@ -171,31 +171,49 @@ echo -e "\n${BLUE}════════════════════�
 echo -e "${BLUE}  Starting llama-server with NUMA optimizations...${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
 
+# Control OpenBLAS threading (critical fix for thread explosion)
+# OpenBLAS in Ubuntu/Debian uses pthreads backend, NOT OpenMP
+# OMP_NUM_THREADS does NOT control OpenBLAS pthreads!
+# Must use OpenBLAS-specific environment variables:
+export OPENBLAS_NUM_THREADS=1
+export GOTO_NUM_THREADS=1
+
+# Additional OpenMP controls for any remaining OpenMP usage
+export OMP_NUM_THREADS=1
+export OMP_DYNAMIC=FALSE
+export OMP_NESTED=FALSE
+export OMP_MAX_ACTIVE_LEVELS=1
+
+echo -e "${BLUE}[INFO]${NC} Thread control environment:"
+echo -e "  OPENBLAS_NUM_THREADS=${OPENBLAS_NUM_THREADS}"
+echo -e "  GOTO_NUM_THREADS=${GOTO_NUM_THREADS}"
+echo -e "  OMP_NUM_THREADS=${OMP_NUM_THREADS}"
+echo -e "  OMP_DYNAMIC=${OMP_DYNAMIC}"
+
 # NUMA-optimized configuration for dual-socket Xeon 6240R:
-# - numactl --interleave=all: Distribute memory across NUMA nodes at OS level
-# - threads=64: Use more CPU cores (physical + some HT)
-# - threads-batch=28: Separate prompt processing threads
-# - batch-size=1024: Reduced from 2048 for better CPU performance
-# - ubatch-size=160: Optimized for CPU memory bandwidth
-# - parallel=2: Support up to 2 concurrent requests
+# - threads=56: Conservative thread count (leaves headroom for OS/server threads)
+# - threads-batch=56: Same as threads for balanced processing
+# - batch-size=512: Reduced from 1024 for better CPU cache utilization
+# - ubatch-size=128: Reduced from 160 for better CPU performance
+# - parallel=1: Single request focus for testing (can increase after optimization)
 # - mlock: Lock model in RAM to prevent swapping
 # - no-mmap: Disable memory mapping for better NUMA locality
-# - numa distribute: Distribute threads equally across NUMA nodes
-# Note: OMP_NUM_THREADS=1 set in Dockerfile to prevent OpenBLAS double-threading
+# - numa distribute: Distribute threads equally across NUMA nodes (handles interleaving internally)
+# Note: Removed numactl wrapper to avoid conflict with --numa distribute
+# Note: OpenBLAS thread control above prevents thread explosion (was 161 threads!)
 # Note: --kv-type not available in current llama.cpp version (future optimization)
 
-exec numactl --interleave=all \
-llama-server \
+exec llama-server \
     --model "${MODEL_FILE}" \
     --host "${LLAMA_HOST}" \
     --port "${LLAMA_PORT}" \
-    --threads 64 \
-    --threads-batch 28 \
+    --threads 56 \
+    --threads-batch 56 \
     --ctx-size "${LLAMA_CONTEXT_SIZE}" \
     -ngl 0 \
-    --batch-size 1024 \
-    --ubatch-size 160 \
-    --parallel 2 \
+    --batch-size 512 \
+    --ubatch-size 128 \
+    --parallel 1 \
     --mlock \
     --no-mmap \
     --numa distribute \
