@@ -4,6 +4,10 @@
 
 FROM ubuntu:22.04
 
+# Allow pinning to specific llama.cpp commit (default: master)
+ARG LLAMA_CPP_COMMIT=master
+ENV LLAMA_CPP_COMMIT=${LLAMA_CPP_COMMIT}
+
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -27,8 +31,11 @@ WORKDIR /app
 # - AVX-512 + VNNI for Intel Xeon 6240R
 # - OpenBLAS for accelerated prompt processing
 # - K-quants enabled for KV cache quantization support
-RUN git clone https://github.com/ggml-org/llama.cpp && \
+RUN rm -rf llama.cpp && \
+    git clone https://github.com/ggml-org/llama.cpp && \
     cd llama.cpp && \
+    if [ "${LLAMA_CPP_COMMIT}" != "master" ]; then git checkout "${LLAMA_CPP_COMMIT}"; fi && \
+    echo "Building llama.cpp commit: $(git rev-parse HEAD)" && \
     cmake -B build \
         -DBUILD_SHARED_LIBS=OFF \
         -DGGML_CUDA=OFF \
@@ -40,7 +47,9 @@ RUN git clone https://github.com/ggml-org/llama.cpp && \
         -DGGML_K_QUANTS=ON \
         -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release -j$(nproc) --target llama-server && \
-    cp build/bin/llama-server /usr/local/bin/
+    install -m 0755 build/bin/llama-server /usr/local/bin/llama-server && \
+    echo "=== llama-server build verification ===" && \
+    /usr/local/bin/llama-server -h | head -n 30
 
 # Install Python packages for model download, benchmarking, and bc for calculations
 RUN apt-get update && apt-get install -y bc && \
