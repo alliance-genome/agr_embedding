@@ -1,0 +1,18 @@
+# Exclude models directory from Docker build context
+# Models are downloaded at runtime or during build, not copied from host
+models/
+*.gguf
+
+# Exclude logs
+logs/
+
+# Exclude git and other dev files
+.git/
+.gitignore
+*.md
+*.old
+
+# Exclude test files
+test_*.py
+__pycache__/
+*.pyc
