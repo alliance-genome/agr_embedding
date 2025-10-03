@@ -172,15 +172,15 @@ echo -e "${BLUE}  Starting llama-server with NUMA optimizations...${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
 
 # NUMA-optimized configuration for dual-socket Xeon 6240R:
-# - numactl --interleave=all: Distribute memory across NUMA nodes
+# - numactl --interleave=all: Distribute memory across NUMA nodes at OS level
 # - threads=64: Use more CPU cores (physical + some HT)
 # - threads-batch=28: Separate prompt processing threads
 # - batch-size=1024: Reduced from 2048 for better CPU performance
 # - ubatch-size=160: Optimized for CPU memory bandwidth
-# - n-parallel=2: Reduced from 4 to avoid contention
-# - kv-type=q8_0: Quantized KV cache for ~20-30% speed boost
-# - mlock + no-mmap: Better NUMA locality and memory management
-# - numa: Enable llama.cpp's internal NUMA awareness
+# - parallel=2: Support up to 2 concurrent requests
+# - mlock: Lock model in RAM to prevent swapping
+# - no-mmap: Disable memory mapping for better NUMA locality
+# - numa distribute: Distribute threads equally across NUMA nodes
 
 exec numactl --interleave=all \
 llama-server \
@@ -194,9 +194,8 @@ llama-server \
     --batch-size 1024 \
     --ubatch-size 160 \
     --parallel 2 \
-    --kv-type q8_0 \
     --mlock \
     --no-mmap \
-    --numa \
+    --numa distribute \
     --metrics \
     --verbose
