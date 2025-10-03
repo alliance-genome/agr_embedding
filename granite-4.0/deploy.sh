@@ -48,41 +48,27 @@ docker run -d \
     $IMAGE_NAME:latest
 
 # Step 5: Check if container is running
-sleep 5
+sleep 2
 if docker ps | grep -q $CONTAINER_NAME; then
-    echo "✓ Container is running"
-
-    # Test health endpoint
-    echo "Testing health endpoint..."
-    echo "  (Waiting 15 seconds for model to load...)"
-    sleep 15
-
-    if curl -f http://localhost:$PORT/health > /dev/null 2>&1; then
-        echo "✓ Service is healthy and responding"
-        echo ""
-        echo "=== Deployment Successful! ==="
-        echo "Service is running on:"
-        echo "  - Local:    http://localhost:$PORT"
-        echo "  - External: http://flysql26.alliancegenome.org:$PORT"
-        echo ""
-        echo "OpenAI-Compatible Endpoints:"
-        echo "  - Health:           http://flysql26.alliancegenome.org:$PORT/health"
-        echo "  - Models:           http://flysql26.alliancegenome.org:$PORT/v1/models"
-        echo "  - Chat Completions: http://flysql26.alliancegenome.org:$PORT/v1/chat/completions"
-        echo ""
-        echo "Model: Granite 4.0 H-Tiny (7B/1B MoE)"
-        echo "Context: 16,384 tokens (expandable to 128K)"
-        echo "Threads: 96 CPU threads"
-        echo ""
-        echo "Management:"
-        echo "  View logs:    ./manage.sh logs"
-        echo "  Check status: ./manage.sh status"
-        echo "  Quick test:   ./manage.sh test"
-    else
-        echo "⚠ Warning: Container is running but health check failed"
-        echo "The model may still be loading. Check logs:"
-        echo "  ./manage.sh logs"
-    fi
+    echo "✓ Container started successfully"
+    echo ""
+    echo "=== Deployment Complete! ==="
+    echo "Service is running on:"
+    echo "  - Local:    http://localhost:$PORT"
+    echo "  - External: http://flysql26.alliancegenome.org:$PORT"
+    echo ""
+    echo "OpenAI-Compatible Endpoints:"
+    echo "  - Health:           http://flysql26.alliancegenome.org:$PORT/health"
+    echo "  - Models:           http://flysql26.alliancegenome.org:$PORT/v1/models"
+    echo "  - Chat Completions: http://flysql26.alliancegenome.org:$PORT/v1/chat/completions"
+    echo ""
+    echo "Model: Granite 4.0 H-Tiny (7B/1B MoE)"
+    echo "Context: 16,384 tokens (expandable to 128K)"
+    echo "Threads: 96 CPU threads"
+    echo ""
+    echo "Note: Model is loading. Check status with:"
+    echo "  ./manage.sh status"
+    echo "  ./manage.sh logs"
 else
     echo "✗ Failed to start container"
     echo "Check logs: ./manage.sh logs"
