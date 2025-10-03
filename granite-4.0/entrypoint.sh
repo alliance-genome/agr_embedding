@@ -74,8 +74,7 @@ else
 
         hf download "${MODEL_REPO}" \
             --include "*.gguf" \
-            --local-dir "${MODEL_DIR}" \
-            --local-dir-use-symlinks False
+            --local-dir "${MODEL_DIR}"
 
         if [ $? -ne 0 ]; then
             echo -e "${RED}[ERROR]${NC} Failed to download model!"
