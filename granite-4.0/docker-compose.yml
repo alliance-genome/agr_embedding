@@ -12,7 +12,7 @@ services:
       - "8081:8080"
       - "8082:8082"
     environment:
-      - LLAMA_THREADS=${LLAMA_THREADS:-56}
+      - LLAMA_THREADS=${LLAMA_THREADS:-24}
       - LLAMA_CONTEXT_SIZE=${LLAMA_CONTEXT_SIZE:-8192}
       - LLAMA_PORT=8080
       - LLAMA_HOST=0.0.0.0

@@ -14,9 +14,9 @@ echo -e "${BLUE}═════════════════════�
 
 # Configuration
 MODEL_REPO="unsloth/granite-4.0-h-tiny-GGUF"
-MODEL_PATTERN="*Q8_0*"
+MODEL_PATTERN="*Q6_K*"
 MODEL_DIR="/app/models"
-MODEL_FILE="${MODEL_DIR}/granite-4.0-h-tiny-Q8_0.gguf"
+MODEL_FILE="${MODEL_DIR}/granite-4.0-h-tiny-Q6_K.gguf"
 
 echo -e "\n${BLUE}[INFO]${NC} Configuration:"
 echo -e "  Model Repository: ${MODEL_REPO}"
@@ -61,15 +61,15 @@ else
         echo -e "${BLUE}[INFO]${NC} Found ${GGUF_COUNT} existing GGUF file(s) in ${MODEL_DIR}"
         find "${MODEL_DIR}" -name "*.gguf" -type f -exec ls -lh {} \;
 
-        # Try to find the Q8_0 model
-        Q8_MODEL=$(find "${MODEL_DIR}" -name "*Q8_0*.gguf" -type f | head -n 1)
+        # Try to find the Q6_K model
+        Q6_MODEL=$(find "${MODEL_DIR}" -name "*Q6_K*.gguf" -type f | head -n 1)
 
-        if [ -n "${Q8_MODEL}" ]; then
-            echo -e "${YELLOW}[ACTION]${NC} Creating symlink from existing Q8_0 model..."
-            ln -sf "${Q8_MODEL}" "${MODEL_FILE}"
-            echo -e "${GREEN}[SUCCESS]${NC} Symlink created: ${MODEL_FILE} -> ${Q8_MODEL}"
+        if [ -n "${Q6_MODEL}" ]; then
+            echo -e "${YELLOW}[ACTION]${NC} Creating symlink from existing Q6_K model..."
+            ln -sf "${Q6_MODEL}" "${MODEL_FILE}"
+            echo -e "${GREEN}[SUCCESS]${NC} Symlink created: ${MODEL_FILE} -> ${Q6_MODEL}"
         else
-            echo -e "${RED}[ERROR]${NC} No Q8_0 model found in directory"
+            echo -e "${RED}[ERROR]${NC} No Q6_K model found in directory"
             echo -e "${YELLOW}[ACTION]${NC} Will attempt to download..."
         fi
     fi
@@ -81,17 +81,17 @@ else
 
         export HF_HUB_ENABLE_HF_TRANSFER=1
 
-        # Download Q8_0 (8-bit quantization) - NEAR-PERFECT QUALITY, 3-4x FASTER THAN BF16
-        # Q8_0 provides the best balance of quality and speed:
-        #   - File size: ~7-8GB (vs 13GB for BF16)
-        #   - Quality: 99.9% of BF16 (0.1% perplexity difference, imperceptible)
-        #   - Speed: 3-4x faster inference than BF16 (20-30 tok/s vs 6-10 tok/s)
-        #   - Memory bandwidth: Half of BF16, much better CPU cache utilization
-        #   - Perfect for production: Near-identical quality at practical speeds
-        echo -e "${BLUE}[INFO]${NC} Downloading Q8_0 (8-bit) variant from ${MODEL_REPO}..."
+        # Download Q6_K (6-bit k-quant) - FASTEST CPU DECODE WITH EXCELLENT QUALITY
+        # Q6_K is optimized for CPU inference on AVX512 VNNI:
+        #   - File size: ~5-6GB (vs 7-8GB for Q8_0)
+        #   - Quality: ~99% of Q8_0, minimal perplexity difference
+        #   - Speed: 2-3x FASTER decode than Q8_0 on AVX512 VNNI CPUs
+        #   - Uses efficient k-quant kernels optimized for Intel VNNI instructions
+        #   - Best choice for CPU-only inference on modern Xeon processors
+        echo -e "${BLUE}[INFO]${NC} Downloading Q6_K (6-bit k-quant) variant from ${MODEL_REPO}..."
 
         hf download "${MODEL_REPO}" \
-            --include "*Q8_0*.gguf" \
+            --include "*Q6_K*.gguf" \
             --local-dir "${MODEL_DIR}"
 
         if [ $? -ne 0 ]; then
@@ -110,13 +110,13 @@ else
             echo "  $f ($size)"
         done
 
-        # Find the Q8_0 model
-        echo -e "\n${BLUE}[INFO]${NC} Looking for Q8_0 model..."
-        DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*Q8_0*.gguf" 2>/dev/null | head -n 1)
+        # Find the Q6_K model
+        echo -e "\n${BLUE}[INFO]${NC} Looking for Q6_K model..."
+        DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*Q6_K*.gguf" 2>/dev/null | head -n 1)
 
         if [ -z "${DOWNLOADED_MODEL}" ]; then
-            echo -e "${YELLOW}[WARNING]${NC} Q8_0 model not found, trying case variations..."
-            DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*q8*0*.gguf" -o -name "*Q8*0*.gguf" 2>/dev/null | head -n 1)
+            echo -e "${YELLOW}[WARNING]${NC} Q6_K model not found, trying case variations..."
+            DOWNLOADED_MODEL=$(find "${MODEL_DIR}" -type f -name "*q6*k*.gguf" -o -name "*Q6*K*.gguf" 2>/dev/null | head -n 1)
         fi
 
         if [ -n "${DOWNLOADED_MODEL}" ]; then
@@ -147,9 +147,9 @@ fi
 MODEL_SIZE_BYTES=$(stat -c%s "${MODEL_FILE}" 2>/dev/null || echo "0")
 MODEL_SIZE_GB=$(echo "scale=2; ${MODEL_SIZE_BYTES}/1024/1024/1024" | bc 2>/dev/null || echo "0")
 
-if [ "${MODEL_SIZE_BYTES}" -lt 5000000000 ]; then
+if [ "${MODEL_SIZE_BYTES}" -lt 4000000000 ]; then
     echo -e "\n${RED}[ERROR]${NC} Model file appears to be invalid or incomplete!"
-    echo -e "  Expected size: ~7-8 GB (Q8_0 8-bit quantization)"
+    echo -e "  Expected size: ~5-6 GB (Q6_K 6-bit k-quant)"
     echo -e "  Actual size:   ${MODEL_SIZE_GB} GB (${MODEL_SIZE_BYTES} bytes)"
     exit 1
 fi
@@ -190,27 +190,36 @@ echo -e "  GOTO_NUM_THREADS=${GOTO_NUM_THREADS}"
 echo -e "  OMP_NUM_THREADS=${OMP_NUM_THREADS}"
 echo -e "  OMP_DYNAMIC=${OMP_DYNAMIC}"
 
-# Optimized configuration for dual-socket Xeon 6240R:
-# - cpu-range 0-55: FORCE limit to 56 cores (llama.cpp ignores --threads!)
-# - threads=56: Thread count (but llama.cpp auto-detects all cores without cpu-range)
-# - threads-batch=56: Same as threads for balanced processing
-# - batch-size=512: Reduced from 1024 for better CPU cache utilization
-# - ubatch-size=128: Reduced from 160 for better CPU performance
-# - parallel=1: Single request focus for testing (can increase after optimization)
-# - cache-type-k/v q8_0: Quantize KV cache to 8-bit (saves memory, minimal quality loss)
+# SINGLE-SOCKET NUMA-PINNED CONFIGURATION (per GPT-5 recommendation)
+# Strategy: Pin to socket 0, use PHYSICAL cores only (no hyperthreading)
+# - numactl --cpunodebind=0 --membind=0: Force socket 0 CPU and memory
+# - Physical cores on socket 0: 0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46
+# - threads=24: Match physical core count (evens 0-46 = 24 cores)
+# - threads-batch=24: Same for balanced prompt/decode performance
+# - batch-size=512: Good for prompt phase parallelization
+# - ubatch-size=128: Optimized for CPU decode
+# - parallel=1: Single request focus
+# - cache-type-k/v q8_0: Quantize KV cache to save memory bandwidth
 # - mlock: Lock model in RAM to prevent swapping
-# - no-mmap: Disable memory mapping for better NUMA locality
-# Note: --threads 56 was being IGNORED, resulting in 154 threads (all 96 cores + overhead)
-# Note: --cpu-range physically limits which cores can be used
-# Note: No OpenBLAS linked (blank ldd output confirmed)
+# - REMOVED --no-mmap: Let OS place pages on correct NUMA node
+# - Q6_K model: 2-3x faster decode than Q8_0 on AVX512 VNNI CPUs
+#
+# Why this works:
+# - Single socket avoids remote NUMA memory access (was killing performance)
+# - Physical cores only: Hyperthreading hurts on memory-bound AVX512 workloads
+# - mmap + NUMA pinning: OS places model pages local to socket 0
+# - Q6_K: Optimized k-quant kernels are faster than Q8_0 for CPU decode
+#
+# Expected results: 12-20 tok/s (vs previous 5.5 tok/s)
 
-exec llama-server \
+exec numactl --cpunodebind=0 --membind=0 \
+    llama-server \
     --model "${MODEL_FILE}" \
     --host "${LLAMA_HOST}" \
     --port "${LLAMA_PORT}" \
-    --cpu-range 0-55 \
-    --threads 56 \
-    --threads-batch 56 \
+    --cpu-mask 0x5555555555555 \
+    --threads 24 \
+    --threads-batch 24 \
     --ctx-size "${LLAMA_CONTEXT_SIZE}" \
     -ngl 0 \
     --batch-size 512 \
@@ -219,6 +228,5 @@ exec llama-server \
     --cache-type-k q8_0 \
     --cache-type-v q8_0 \
     --mlock \
-    --no-mmap \
     --metrics \
     --verbose

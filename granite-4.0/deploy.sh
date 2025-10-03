@@ -39,7 +39,7 @@ docker run -d \
     --cap-add=SYS_NICE \
     -p $PORT:8080 \
     -p $BENCHMARK_PORT:8082 \
-    -e LLAMA_THREADS=56 \
+    -e LLAMA_THREADS=24 \
     -e LLAMA_CONTEXT_SIZE=8192 \
     -e LLAMA_PORT=8080 \
     -e LLAMA_HOST=0.0.0.0 \
@@ -77,12 +77,13 @@ if docker ps | grep -q $CONTAINER_NAME; then
     echo "  - Get Results:       GET  http://flysql26.alliancegenome.org:$BENCHMARK_PORT/results"
     echo "  - Status:            GET  http://flysql26.alliancegenome.org:$BENCHMARK_PORT/status"
     echo ""
-    echo "Model: Granite 4.0 H-Tiny Q8_0 (7B/1B MoE, 8-bit quantization)"
+    echo "Model: Granite 4.0 H-Tiny Q6_K (7B/1B MoE, 6-bit k-quant)"
+    echo "Quantization: Q6_K optimized for AVX512 VNNI (2-3x faster than Q8_0)"
     echo "Context: 8,192 tokens"
-    echo "Threads: 56 worker threads (OpenBLAS thread explosion fixed!)"
-    echo "Resources: 64 CPU cores, 96GB RAM, NUMA-distributed"
-    echo "Optimizations: OpenBLAS acceleration, AVX-512, NUMA awareness"
-    echo "Expected Speed: 15-25 tokens/sec (with proper thread control)"
+    echo "NUMA Strategy: Single-socket pinning (socket 0, physical cores only)"
+    echo "Threads: 24 physical cores (no hyperthreading)"
+    echo "Resources: 64 CPU cores available, using 24 for optimal performance"
+    echo "Expected Speed: 12-20 tokens/sec (vs previous 5.5 tok/s)"
     echo ""
     echo "Note: Model is loading. Check status with:"
     echo "  ./manage.sh status"

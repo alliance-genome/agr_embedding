@@ -77,7 +77,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Set environment variables for runtime configuration
-ENV LLAMA_THREADS=56
+ENV LLAMA_THREADS=24
 ENV LLAMA_CONTEXT_SIZE=8192
 ENV LLAMA_PORT=8080
 ENV LLAMA_HOST=0.0.0.0
