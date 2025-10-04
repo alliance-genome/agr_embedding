@@ -13,18 +13,19 @@ IBM Granite 4.0 is a family of open-source large language models featuring a Hyb
 - **Best For**: Multi-turn conversations, complex reasoning, production workloads
 - **Hardware**: High-end CPUs or entry-level GPUs
 
-### H-Tiny (7B total, 1B active) - MoE **← RECOMMENDED**
+### H-Tiny (7B total, 1B active) - MoE **← CURRENTLY DEPLOYED**
 - **Use Case**: Optimal balance of quality and performance
 - **Architecture**: Mixture of Experts (MoE)
 - **Active Parameters**: 1B out of 7B total
 - **Best For**: High-throughput tasks, production deployments
 - **Hardware**: Excellent for CPU-based inference (48+ threads)
+- **Quantization**: Q4_K_M (4-bit k-quant medium) for fast inference
 
 ### H-Micro (3B) - Dense
 - **Use Case**: Maximum throughput for simple tasks
 - **Architecture**: Dense model
 - **Parameters**: 3B total
-- **Best For**: High-volume, low-complexity workloads
+- **Best For**: Fast inference, high-volume workloads
 - **Hardware**: Good for any modern multi-core CPU
 
 ### Micro (3B) - Dense (Alternative)
